@@ -1,53 +1,59 @@
 import sqlite3
-import pandas as pd
+from reportlab.pdfgen import canvas
+from reportlab.pdfbase.ttfonts import TTFont
+from reportlab.pdfbase import pdfmetrics
+from reportlab.lib import colors
 
-conn = sqlite3.connect('dados.sqlite3') 
-c = conn.cursor()
+fileName = 'relatorio.pdf'
+documentTitle = 'relatorio'
+subTitle = 'Relatorio folha de pagamento'
 
-c.execute('''
-          CREATE TABLE IF NOT EXISTS valores_pagos
-          ([id] INTEGER PRIMARY KEY, [nome] TEXT, [salario] INTEGER)
-          ''')
-          
-c.execute('''
-          CREATE TABLE IF NOT EXISTS valores_base
-          ([id] INTEGER PRIMARY KEY, [nome] TEXT, [salario] INTEGER)
-          ''')
+pdf = canvas.Canvas(fileName)
 
-#INSERÇÂO DE DADOS PARA TESTE
-        
-# c.execute(''' INSERT INTO valores_base(id, nome, salario)
-#         VALUES
-#             (1,'Tássio Freire', 1200.35),
-#             (2,'Marina de Paula', 1250.48),
-#             (3,'Eduardo', 850.48)
-#           '''      )
+pdf.setTitle(documentTitle)
+pdf.setFont("Helvetica", 18)
+pdf.setFillColorRGB(0, 0, 0)
+pdf.drawCentredString(290, 720, subTitle)
 
-# c.execute(''' INSERT INTO valores_pagos(id, nome, salario)
-#         VALUES
-#             (1,'Tássio Freire', 1200.35),
-#             (2,'Marina de Paula', 1300.48),
-#             (3,'Eduardo', 900.48)
-#           '''  )
+pdf.line(30, 710, 550, 710)
 
 
-# conn.commit()
-
+banco_dados_pagos = []
+tabelas = input("As duas tabelas estão no mesmo banco de dados (S/N) ? ")
+if tabelas == 'S':
+    banco_dados = input("Qual o nome do banco de dados (ex: dados.sqlite3)? ")
+    tabela_refencia = input("Qual o nome da tabela que contem os valores de referencia? ")
+    tabela_pagos = input("Qual o nome da tabela que contem os valores pagos? ")
+    conn = sqlite3.connect(banco_dados) 
+    c = conn.cursor()
+elif tabelas == 'N':
+    banco_dados_referencia = input("Qual o nome do banco de dados que tem os valores de referencia (ex: dados.sqlite3)? ")
+    banco_dados_pagos = input("Qual o nome do banco de dados que tem os valores pagos (ex: dados2.sqlite3)? ")
+    tabela_refencia = input("Qual o nome da tabela que contem os valores de referencia? ")
+    tabela_pagos = input("Qual o nome da tabela que contem os valores pagos? ")
+    conn = sqlite3.connect(banco_dados_referencia) 
+    c = conn.cursor()
+    conn = sqlite3.connect(banco_dados_pagos) 
+    d = conn.cursor()
+else: 
+    print("Valor errado")
 
 # SE O ID FOR O MESMO NAS DUAS TABELAS PODEMOS VERIFICAR SE O VALOR DIFERE NAS DUAS TABELAS ATRAVES DISSO
 
-# c.execute('''
+# c.execute(f'''
 #           SELECT
 #           *
-#           FROM valores_base
+#           FROM {tabela_refencia}
 #           ''')
 
 # valores_base = c.fetchall()
+# if banco_dados_pagos:
+#     c = d
 
-# c.execute('''
+# c.execute(f'''
 #           SELECT
 #           *
-#           FROM valores_pagos
+#           FROM {tabela_pagos}
 #           ''')
 
 # valores_pagos = c.fetchall()
@@ -68,25 +74,36 @@ c.execute('''
 # print(diferenca_total / len(valores_base))
 
 # SE O ID NÂO FOR O MESMO NAS DUAS TABELAS UTILIZAREMOS BINARY SEARCH PARA ENCONTRAR PELO O NOME E ENTÂO VERIFICAR SE O VALOR DIFERE NAS DUAS TABELAS 
+pdf.line(30, 710, 550, 710)
 
-c.execute('''
+
+text = pdf.beginText(40, 680)
+text.setFont("Helvetica", 12)
+text.textLine("Colaborador com salario errado: ")
+pdf.drawText(text)
+
+c.execute(f'''
           SELECT
           *
-          FROM valores_base
+          FROM {tabela_refencia}
           ''')
 
 valores_base = c.fetchall()
-c.execute('''
+
+if banco_dados_pagos:
+    c = d
+
+c.execute(f'''
           SELECT
           *
-          FROM valores_pagos ORDER BY nome
+          FROM {tabela_pagos} ORDER BY nome
           ''')
 
 valores_pagos = c.fetchall()
 valor_total_base = 0
 valor_total_pago = 0
 print("Colaboradores com salarios errado:")
-print("Colaborador             Diferença")
+print(f"{'Colaborador': <25}Diferença")
 for row in valores_base:
         valor_total_base += row[2]
         valor_total_pago += valores_pagos[row[0] - 1][2]
@@ -108,12 +125,21 @@ for row in valores_base:
                     first = mid +1
         if row[2] != valores_pagos[index][2]:
             diferenca = valores_pagos[index][2] - row[2]
-            print(f'{row[1]}                {diferenca}')
+            espaco = len(row[1]) - 30
+            print(f'{row[1] : <25}{diferenca}')
+            text.textLine(f'{row[1]: <40}{diferenca}')
+            pdf.drawText(text)
 
 
 diferenca_total = valor_total_pago - valor_total_base
-print(diferenca_total)
-print(diferenca_total / len(valores_base))
+print(f'Diferença entre valor total das folhas: {diferenca_total}')
+print(f'Diferença media: {diferenca_total / len(valores_base)}')
+
+text.textLine(f'Diferença total das folhas: {diferenca_total}')
+pdf.drawText(text)
+media = diferenca_total/len(valores_base)
+text.textLine(f'Media de diferença: {media}')
+pdf.drawText(text)
 
 
-
+pdf.save()
