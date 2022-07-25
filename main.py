@@ -81,65 +81,71 @@ text = pdf.beginText(40, 680)
 text.setFont("Helvetica", 12)
 text.textLine("Colaborador com salario errado: ")
 pdf.drawText(text)
+def coferencia_folha(folha_referencia, folha_paga):
+    folha_referencia.execute(f'''
+            SELECT
+            *
+            FROM {tabela_refencia}
+            ''')
 
-c.execute(f'''
-          SELECT
-          *
-          FROM {tabela_refencia}
-          ''')
+    valores_base = folha_referencia.fetchall()
 
-valores_base = c.fetchall()
+
+    folha_paga.execute(f'''
+            SELECT
+            *
+            FROM {tabela_pagos} ORDER BY nome
+            ''')
+
+    valores_pagos = folha_paga.fetchall()
+    valor_total_base = 0
+    valor_total_pago = 0
+    print("Colaboradores com salarios errado:")
+    print(f"{'Colaborador': <25}Diferença")
+    for row in valores_base:
+            valor_total_base += row[2]
+            valor_total_pago += valores_pagos[row[0] - 1][2]
+
+            lys = len(valores_base)
+            first = 0
+            last = lys-1
+            index = -1
+            val = row[1]
+
+            while (first <= last) and (index == -1):
+                mid = (first+last)//2
+                if valores_pagos[mid][1] == val:
+                    index = mid
+                else:
+                    if val<valores_pagos[mid][1]:
+                        last = mid - 1
+                    else:
+                        first = mid +1
+            if row[2] != valores_pagos[index][2]:
+                diferenca = valores_pagos[index][2] - row[2]
+                espaco = len(row[1]) - 30
+                print(f'{row[1] : <25}{diferenca}')
+                text.textLine(f'{row[1]: <40}{diferenca}')
+                pdf.drawText(text)
+
+
+    diferenca_total = valor_total_pago - valor_total_base
+    print(f'Diferença entre valor total das folhas: {diferenca_total}')
+    print(f'Diferença media: {diferenca_total / len(valores_base)}')
+
+    text.textLine(f'Diferença total das folhas: {diferenca_total}')
+    pdf.drawText(text)
+    media = diferenca_total/len(valores_base)
+    text.textLine(f'Media de diferença: {media}')
+    pdf.drawText(text)
+
+
+    pdf.save()
+
 
 if banco_dados_pagos:
-    c = d
+    coferencia_folha(c, d)
+else:
+    coferencia_folha(c, c)
 
-c.execute(f'''
-          SELECT
-          *
-          FROM {tabela_pagos} ORDER BY nome
-          ''')
-
-valores_pagos = c.fetchall()
-valor_total_base = 0
-valor_total_pago = 0
-print("Colaboradores com salarios errado:")
-print(f"{'Colaborador': <25}Diferença")
-for row in valores_base:
-        valor_total_base += row[2]
-        valor_total_pago += valores_pagos[row[0] - 1][2]
-
-        lys = len(valores_base)
-        first = 0
-        last = lys-1
-        index = -1
-        val = row[1]
-
-        while (first <= last) and (index == -1):
-            mid = (first+last)//2
-            if valores_pagos[mid][1] == val:
-                index = mid
-            else:
-                if val<valores_pagos[mid][1]:
-                    last = mid - 1
-                else:
-                    first = mid +1
-        if row[2] != valores_pagos[index][2]:
-            diferenca = valores_pagos[index][2] - row[2]
-            espaco = len(row[1]) - 30
-            print(f'{row[1] : <25}{diferenca}')
-            text.textLine(f'{row[1]: <40}{diferenca}')
-            pdf.drawText(text)
-
-
-diferenca_total = valor_total_pago - valor_total_base
-print(f'Diferença entre valor total das folhas: {diferenca_total}')
-print(f'Diferença media: {diferenca_total / len(valores_base)}')
-
-text.textLine(f'Diferença total das folhas: {diferenca_total}')
-pdf.drawText(text)
-media = diferenca_total/len(valores_base)
-text.textLine(f'Media de diferença: {media}')
-pdf.drawText(text)
-
-
-pdf.save()
+    
